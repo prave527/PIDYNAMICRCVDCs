@@ -1,4 +1,8 @@
-package com.saki.dynamic;
+package com.saki.maps;
+
+
+
+
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,7 +23,7 @@ import com.sap.aii.mapping.lookup.DataBaseAccessor;
 import com.sap.aii.mapping.lookup.DataBaseResult;
 import com.sap.aii.mapping.lookup.LookupService;
 
-public class DynamicReceiver extends AbstractTransformation {
+public class GetReceivers extends AbstractTransformation {
 
 	private static Connection conn = null;
 	private static Statement stmt = null;
@@ -29,76 +33,80 @@ public class DynamicReceiver extends AbstractTransformation {
 	public void transform(TransformationInput input, TransformationOutput output)
 	throws StreamTransformationException {
 		try {
-			
+
 			getTrace().addInfo("JAVA Mapping Called");			
 
 			DynamicConfiguration conf = input.getDynamicConfiguration();
 			DynamicConfigurationKey key1 = DynamicConfigurationKey.create( "http:/"+"/sap.com/xi/XI/System/File","FileName");
 			fileName = conf.get(key1);
-			
-			
-			
-			
+
+
+
+
 			this.execute(input.getInputPayload().getInputStream(), output
 					.getOutputPayload().getOutputStream());
 
-			
+
 		} catch (IOException e) {
 
 			e.printStackTrace();
 		}			
-			
+
 	}
-			
+
 		public void execute(InputStream in, OutputStream out)
 		throws StreamTransformationException, IOException {
 			try {
 
-		
+
 			String XMLDeclaration = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
 			String header = "<ns1:Receivers xmlns:ns1=\"http://sap.com/xi/XI/System\">";
 
 			String ReceiverStr = "";
 			String receiver = "";
-			
+
 			DataBaseAccessor accessor = null;			
-			Channel channel = LookupService.getChannel("BS_DUMMY_1","CC_RCV_JDBC_LOOKUP_SERVICE");
+//These can be passed as params to the Java map
+			Channel channel = LookupService.getChannel("BS_DUMMY_JDBCRCVR","CC_RCVR_JDBC");
  
-			
-			
+
+
 				accessor = LookupService.getDataBaseAccessor(channel);
  
-				String sqlStatement = "SELECT id, FILENAME, RECEIVER FROM ROUTING";
+				String sqlStatement = "SELECT id, FILENAME, RECEIVER FROM TMP_RECEIVER";
  
 				DataBaseResult result = accessor.execute(sqlStatement);
 
-				
+
 				Iterator<Routing> rows = result.getRows(); 
 				while (rows.hasNext() ){
 
 					Map columnMap = (Map) rows.next(); 
 					String fileIndB  = (String)columnMap.get("FILENAME"); 
 					String bussysInDB = (String)columnMap.get("RECEIVER");					
-				
-				
-				....DO a match here to check if the filename matches the pattern of the input file
+
+
+					if ( fileName.startsWith(fileIndB)  ){
+						receiver = bussysInDB;
+						break;
+					}
 					
 				}
-				
+
 					ReceiverStr = XMLDeclaration + header + "<Receiver>" + "<Service>"
 					+ receiver + "</Service>" + "</Receiver>"
 					+ "</ns1:Receivers>";
 
-					
+
 					out.write(ReceiverStr.getBytes());
-			
-				
+
+
 		} catch (IOException e) {
 
 			e.printStackTrace();
 		}
 	}
-	
+
 
 
 
